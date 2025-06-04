@@ -2,12 +2,7 @@
 pragma solidity ^0.8.26;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-contract MyToken is ERC20 {
-    constructor(uint256 initialSupply) ERC20("MyToken", "MTK") {
-        _mint(msg.sender, initialSupply);
-    }
-}
+import "./MyToken.sol"; // если в том же проекте
 
 contract Voting {
     struct Candidate {
@@ -50,12 +45,17 @@ contract Voting {
     }
 
     function getWinner() public view returns (string memory winnerName) {
-        uint winningVoteCount = 0;
-        for (uint i = 0; i < candidatesCount; i++) {
-            if (candidates[i].voteCount > winningVoteCount) {
-                winningVoteCount = candidates[i].voteCount;
-                winnerName = candidates[i].name;
-            }
+    uint winningVoteCount = 0;
+    bool isTie = false;
+
+    for (uint i = 0; i < candidatesCount; i++) {
+        if (candidates[i].voteCount > winningVoteCount) {
+            winningVoteCount = candidates[i].voteCount;
+            winnerName = candidates[i].name;
+            isTie = false;
+        } else if (candidates[i].voteCount == winningVoteCount && winningVoteCount != 0) {
+            isTie = true;
         }
+    }
     }
 }

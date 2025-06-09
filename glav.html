@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система блокчейн-голосований</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            font-size: 24px;
+        }
+        
+        .connect-button {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 10px 15px;
+            background-color: #f6851b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+        }
+        
+        .create-voting {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 10px 15px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+        }
+        
+        .votings-list {
+            margin-top: 40px;
+        }
+        
+        .voting-item {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .voting-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .voting-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .voting-description {
+            font-style: italic;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+        
+        .voting-date {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .status-open {
+            color: #27ae60;
+        }
+        
+        .status-closed {
+            color: #e74c3c;
+        }
+        
+        .wallet-info {
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #e8f4f8;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>СИСТЕМА БЛОКЧЕЙН-ГОЛОСОВАНИЙ</h1>
+    
+    <div class="wallet-info" id="walletInfo">
+        Подключен кошелек: <span id="walletAddress"></span>
+    </div>
+    
+ 
+    
+    <a href="craft.html" class="create-voting">Создать голосование</a>
+    
+    <div class="votings-list">
+        <h2>Голосования</h2>
+        <div id="votingsContainer">
+            <!-- Голосования будут добавляться сюда динамически -->
+        </div>
+    </div>
+
+    <script>
+        // Функция для форматирования даты
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            return `${day}.${month}`;
+        }
+
+        // Функция для отображения голосований
+        function displayVotings() {
+            const votingsContainer = document.getElementById('votingsContainer');
+            const votings = JSON.parse(localStorage.getItem('votings')) || [];
+            
+            votingsContainer.innerHTML = '';
+            
+            if (votings.length === 0) {
+                votingsContainer.innerHTML = '<p>Нет активных голосований</p>';
+                return;
+            }
+            
+            votings.forEach(voting => {
+                const votingElement = document.createElement('div');
+                votingElement.className = 'voting-item';
+                votingElement.onclick = () => {
+                    localStorage.setItem('currentVoting', JSON.stringify(voting));
+                    window.location.href = 'voting.html';
+                };
+                
+                const statusClass = voting.status === 'open' ? 'status-open' : 'status-closed';
+                const statusText = voting.status === 'open' ? 'ОТКРЫТО' : 'ЗАВЕРШЕНО';
+                
+                votingElement.innerHTML = `
+                    <div class="voting-title">${voting.title.toUpperCase()}</div>
+                    <div class="voting-description">ОПИСАНИЕ: ${voting.description}</div>
+                    <div class="voting-date ${statusClass}">
+                        ${formatDate(voting.createdAt)} ● ${statusText}
+                    </div>
+                `;
+                
+                votingsContainer.appendChild(votingElement);
+            });
+        }
+
+        // Вызываем функцию при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            displayVotings();
+            
+            const connectButton = document.getElementById('connectButton');
+            const walletInfo = document.getElementById('walletInfo');
+            const walletAddress = document.getElementById('walletAddress');
+            
+            if (typeof window.ethereum === 'undefined') {
+                connectButton.textContent = 'Установите MetaMask';
+                connectButton.style.backgroundColor = '#e74c3c';
+                connectButton.onclick = () => {
+                    window.open('https://metamask.io/download.html', '_blank');
+                };
+            } else {
+                checkConnectedWallet();
+                connectButton.addEventListener('click', connectWallet);
+            }
+            
+            async function checkConnectedWallet() {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        updateWalletInfo(accounts[0]);
+                    }
+                } catch (error) {
+                    console.error('Ошибка при проверке подключенного кошелька:', error);
+                }
+            }
+            
+            async function connectWallet() {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    updateWalletInfo(accounts[0]);
+                    
+                    window.ethereum.on('accountsChanged', (newAccounts) => {
+                        if (newAccounts.length > 0) {
+                            updateWalletInfo(newAccounts[0]);
+                        } else {
+                            walletInfo.style.display = 'none';
+                            connectButton.textContent = 'Подключить MetaMask';
+                            connectButton.style.backgroundColor = '#f6851b';
+                        }
+                    });
+                    
+                    window.ethereum.on('chainChanged', () => {
+                        window.location.reload();
+                    });
+                    
+                } catch (error) {
+                    console.error('Ошибка при подключении кошелька:', error);
+                    if (error.code === 4001) {
+                        alert('Вы отклонили запрос на подключение кошелька.');
+                    }
+                }
+            }
+            
+            function updateWalletInfo(account) {
+                const formattedAddress = `${account.substring(0, 6)}...${account.substring(account.length - 4)}`;
+                walletAddress.textContent = formattedAddress;
+                walletInfo.style.display = 'block';
+                connectButton.textContent = 'Кошелек подключен';
+                connectButton.style.backgroundColor = '#27ae60';
+            }
+        });
+    </script>
+</body>
+</html>

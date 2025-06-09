@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Голосование</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 24px;
+            text-transform: uppercase;
+        }
+        
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background-color: #7f8c8d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .back-button:hover {
+            background-color: #95a5a6;
+        }
+        
+        .voting-description {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .voting-description h2 {
+            color: #2c3e50;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        
+        .options-list {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .options-list h2 {
+            color: #2c3e50;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        
+        .option-item {
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .option-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .option-radio {
+            margin-right: 15px;
+            width: 20px;
+            height: 20px;
+        }
+        
+        .submit-button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        .submit-button:hover {
+            background-color: #2ecc71;
+        }
+        
+        .submit-button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .voting-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .voting-id {
+            font-family: monospace;
+            background-color: #eee;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-open {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-closed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .results-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+
+        .result-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: white;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .result-bar {
+            height: 20px;
+            background-color: #3498db;
+            border-radius: 3px;
+            margin-top: 5px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .button-loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <a href="glav.html" class="back-button">← Назад к списку голосований</a>
+    
+    <h1 id="votingTitle">ГОЛОСОВАНИЕ</h1>
+    
+    <div class="voting-description">
+        <div class="voting-meta">
+            <span class="voting-id" id="votingId"></span>
+            <span class="status-badge" id="statusBadge"></span>
+        </div>
+        <h2>ОПИСАНИЕ:</h2>
+        <p id="votingDescription"></p>
+    </div>
+    
+    <div class="options-list">
+        <h2>ВАРИАНТЫ ОТВЕТОВ:</h2>
+        <div id="optionsContainer">
+            <!-- Варианты будут добавлены динамически -->
+        </div>
+        
+        <button class="submit-button" disabled id="submitButton">
+            <span class="button-loader">
+                <span id="submitButtonText">ПОДАТЬ ГОЛОС</span>
+                <span id="submitButtonLoader" class="loading" style="display: none;"></span>
+            </span>
+        </button>
+
+        <div id="resultsContainer" class="results-container" style="display: none;">
+            <h2>РЕЗУЛЬТАТЫ ГОЛОСОВАНИЯ:</h2>
+            <div id="resultsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // ABI контракта
+        const contractABI = [
+            {
+                "inputs": [
+                    {
+                        "internalType": "string[]",
+                        "name": "_candidateNames",
+                        "type": "string[]"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "_name",
+                        "type": "string"
+                    }
+                ],
+                "name": "addCandidate",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "endVoting",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getWinner",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "result",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "winners",
+                        "type": "uint256[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_candidateId",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "vote",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "candidates",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "voteCount",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "candidatesCount",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "totalVotes",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "voters",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "votingClosed",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "voter",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "candidateId",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "VoteCast",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": false,
+                        "internalType": "string",
+                        "name": "result",
+                        "type": "string"
+                    }
+                ],
+                "name": "VotingEnded",
+                "type": "event"
+            }
+        ];
+
+        let web3;
+        let votingContract;
+        let currentAccount;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Получаем данные о текущем голосовании
+            const currentVoting = JSON.parse(localStorage.getItem('currentVoting'));
+            const submitButton = document.getElementById('submitButton');
+            
+            if (!currentVoting) {
+                alert('Голосование не найдено');
+                window.location.href = 'glav.html';
+                return;
+            }
+            
+            // Инициализация Web3
+            if (typeof window.ethereum !== 'undefined') {
+                web3 = new Web3(window.ethereum);
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const accounts = await web3.eth.getAccounts();
+                    currentAccount = accounts[0];
+                    
+                    // Инициализация контракта
+                    votingContract = new web3.eth.Contract(
+                        contractABI, 
+                        currentVoting.contractAddress
+                    );
+                    
+                    // Проверка статуса голосования в контракте
+                    const isClosed = await votingContract.methods.votingClosed().call();
+                    if (isClosed) {
+                        currentVoting.status = 'closed';
+                        localStorage.setItem('currentVoting', JSON.stringify(currentVoting));
+                    }
+                    
+                } catch (error) {
+                    console.error('Ошибка инициализации Web3:', error);
+                }
+            }
+            
+            // Проверяем статус голосования
+            if (currentVoting.status === 'closed') {
+                submitButton.disabled = true;
+                document.getElementById('submitButtonText').textContent = 'ГОЛОСОВАНИЕ ЗАВЕРШЕНО';
+                await displayResults();
+            }
+            
+            // Заполняем заголовок и описание
+            document.getElementById('votingTitle').textContent = `ГОЛОСОВАНИЕ: ${currentVoting.title.toUpperCase()}`;
+            document.getElementById('votingDescription').textContent = currentVoting.description;
+            document.getElementById('votingId').textContent = `ID: ${currentVoting.id.substring(0, 12)}...`;
+            
+            // Устанавливаем статус
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.textContent = currentVoting.status === 'open' ? 'Открыто' : 'Завершено';
+            statusBadge.className = `status-badge status-${currentVoting.status}`;
+            
+            // Создаем варианты ответов
+            const optionsContainer = document.getElementById('optionsContainer');
+            currentVoting.options.forEach((option, index) => {
+                const optionId = `option-${index}`;
+                
+                const label = document.createElement('label');
+                label.className = 'option-item';
+                label.innerHTML = `
+                    <input type="radio" name="votingOption" class="option-radio" value="${index}" id="${optionId}" 
+                        ${currentVoting.status === 'closed' ? 'disabled' : ''}>
+                    ${option}
+                `;
+                
+                optionsContainer.appendChild(label);
+            });
+            
+            // Обработка выбора варианта
+            const options = document.querySelectorAll('.option-radio');
+            
+            options.forEach(option => {
+                option.addEventListener('change', () => {
+                    if (currentVoting.status === 'open') {
+                        submitButton.disabled = false;
+                    }
+                });
+            });
+            
+            // Проверяем, голосовал ли уже пользователь
+            if (currentVoting.status === 'open' && votingContract) {
+                try {
+                    const hasVoted = await votingContract.methods.voters(currentAccount).call();
+                    if (hasVoted) {
+                        submitButton.disabled = true;
+                        document.getElementById('submitButtonText').textContent = 'ВЫ УЖЕ ГОЛОСОВАЛИ';
+                        await displayResults();
+                    }
+                } catch (error) {
+                    console.error('Ошибка проверки статуса голосования:', error);
+                }
+            }
+            
+            // Обработка отправки голоса
+            submitButton.addEventListener('click', async () => {
+                const selectedOption = document.querySelector('input[name="votingOption"]:checked');
+                if (selectedOption && votingContract) {
+                    try {
+                        // Показываем индикатор загрузки
+                        document.getElementById('submitButtonText').textContent = 'ОТПРАВКА...';
+                        document.getElementById('submitButtonLoader').style.display = 'inline-block';
+                        submitButton.disabled = true;
+                        
+                        // Отправляем голос в смарт-контракт
+                        await votingContract.methods.vote(selectedOption.value)
+                            .send({ from: currentAccount });
+                        
+                        // Обновляем локальные данные
+                        const votings = JSON.parse(localStorage.getItem('votings')) || [];
+                        const updatedVotings = votings.map(voting => {
+                            if (voting.id === currentVoting.id) {
+                                if (!voting.voters) {
+                                    voting.voters = [];
+                                }
+                                voting.voters.push({
+                                    address: currentAccount,
+                                    votedAt: new Date().toISOString(),
+                                    choice: currentVoting.options[selectedOption.value]
+                                });
+                            }
+                            return voting;
+                        });
+                        
+                        localStorage.setItem('votings', JSON.stringify(updatedVotings));
+                        
+                        // Показываем подтверждение
+                        alert(`Ваш голос за "${currentVoting.options[selectedOption.value]}" успешно учтен!`);
+                        
+                        // Показываем результаты
+                        await displayResults();
+                        
+                        // Обновляем статус кнопки
+                        document.getElementById('submitButtonText').textContent = 'ВЫ УЖЕ ГОЛОСОВАЛИ';
+                        document.getElementById('submitButtonLoader').style.display = 'none';
+                        
+                    } catch (error) {
+                        console.error('Ошибка при голосовании:', error);
+                        alert(`Ошибка: ${error.message}`);
+                        
+                        // Восстанавливаем кнопку
+                        document.getElementById('submitButtonText').textContent = 'ПОДАТЬ ГОЛОС';
+                        document.getElementById('submitButtonLoader').style.display = 'none';
+                        submitButton.disabled = false;
+                    }
+                }
+            });
+        });
+
+        // Функция для отображения результатов
+        async function displayResults() {
+            if (!votingContract) return;
+            
+            try {
+                const resultsContainer = document.getElementById('resultsContainer');
+                const resultsContent = document.getElementById('resultsContent');
+                
+                resultsContainer.style.display = 'block';
+                resultsContent.innerHTML = '';
+                
+                // Получаем общее количество голосов
+                const totalVotes = await votingContract.methods.totalVotes().call();
+                
+                // Получаем данные по каждому кандидату
+                const candidatesCount = await votingContract.methods.candidatesCount().call();
+                let maxVotes = 0;
+                
+                for (let i = 0; i < candidatesCount; i++) {
+                    const candidate = await votingContract.methods.candidates(i).call();
+                    maxVotes = Math.max(maxVotes, candidate.voteCount);
+                    
+                    const percentage = totalVotes > 0 
+                        ? Math.round((candidate.voteCount / totalVotes) * 100)
+                        : 0;
+                    
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+                    resultItem.innerHTML = `
+                        <div>
+                            <strong>${candidate.name}</strong>
+                            <div>${candidate.voteCount} голосов (${percentage}%)</div>
+                            <div class="result-bar" style="width: ${percentage}%"></div>
+                        </div>
+                    `;
+                    
+                    resultsContent.appendChild(resultItem);
+                }
+                
+                // Показываем победителя, если голосование завершено
+                const isClosed = await votingContract.methods.votingClosed().call();
+                if (isClosed) {
+                    const [winner] = await votingContract.methods.getWinner().call();
+                    const winnerDiv = document.createElement('div');
+                    winnerDiv.style.marginTop = '15px';
+                    winnerDiv.style.fontWeight = 'bold';
+                    winnerDiv.textContent = `Победитель: ${winner}`;
+                    resultsContent.appendChild(winnerDiv);
+                }
+                
+            } catch (error) {
+                console.error('Ошибка при получении результатов:', error);
+            }
+        }
+    </script>
+</body>
+</html>

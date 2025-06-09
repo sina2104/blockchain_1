@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание голосования</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .options-container, .participants-container {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        
+        .option-input, .participant-input {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .option-input input, .participant-input input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .option-label, .participant-label {
+            min-width: 100px;
+            margin-right: 10px;
+            color: #7f8c8d;
+        }
+        
+        .status-message {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        
+        .wallet-btn {
+            background-color: #f39c12;
+            margin-bottom: 15px;
+        }
+        
+        .wallet-btn:hover {
+            background-color: #e67e22;
+        }
+        
+        .section-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 20px 0 10px 0;
+        }
+        
+        .remove-btn {
+            width: auto;
+            padding: 5px 10px;
+            margin-left: 10px;
+            background-color: #e74c3c;
+            font-size: 12px;
+        }
+        
+        .remove-btn:hover {
+            background-color: #c0392b;
+        }
+        
+        .add-btn {
+            width: auto;
+            padding: 5px 10px;
+            background-color: #2ecc71;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .add-btn:hover {
+            background-color: #27ae60;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Создание нового голосования</h1>
+        
+        <form id="createPollForm">
+            <div class="form-group">
+                <label for="pollTitle">Название голосования:</label>
+                <input type="text" id="pollTitle" required placeholder="Введите название">
+            </div>
+            
+            <div class="form-group">
+                <label for="pollDescription">Описание:</label>
+                <textarea id="pollDescription" required placeholder="Опишите детали голосования"></textarea>
+            </div>
+            
+            <div class="section-title">Варианты ответов</div>
+            <div class="form-group">
+                <button type="button" id="addOptionBtn" class="add-btn">+ Добавить вариант</button>
+            </div>
+            
+            <div class="options-container" id="optionsContainer">
+                <!-- Варианты ответов будут добавляться сюда динамически -->
+                <div class="option-input">
+                    <span class="option-label">Вариант 1:</span>
+                    <input type="text" class="poll-option" placeholder="Введите вариант ответа" required>
+                    <button type="button" class="remove-btn">×</button>
+                </div>
+                <div class="option-input">
+                    <span class="option-label">Вариант 2:</span>
+                    <input type="text" class="poll-option" placeholder="Введите вариант ответа" required>
+                    <button type="button" class="remove-btn">×</button>
+                </div>
+            </div>
+            
+            <div class="section-title">Участники голосования</div>
+            <div class="form-group">
+                <button type="button" id="addParticipantBtn" class="add-btn">+ Добавить участника</button>
+            </div>
+            
+            <div class="participants-container" id="participantsContainer">
+                <!-- Участники будут добавляться сюда динамически -->
+                <div class="participant-input">
+                    <span class="participant-label">Участник 1:</span>
+                    <input type="text" class="participant-address" placeholder="0x..." required>
+                    <button type="button" class="remove-btn">×</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="endDate">Дата окончания голосования:</label>
+                <input type="datetime-local" id="endDate" required>
+            </div>
+            
+            <button type="submit" id="createPollBtn">
+                <span id="createPollBtnText">Создать голосование</span>
+                <span id="createPollBtnLoader" class="loading" style="display: none;"></span>
+            </button>
+            
+            <div id="statusMessage" class="status-message"></div>
+        </form>
+    </div>
+
+    <script>
+        // Конфигурация контракта
+        const contractABI = [
+            {
+                "inputs": [
+                    {
+                        "internalType": "string[]",
+                        "name": "_candidateNames",
+                        "type": "string[]"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "_name",
+                        "type": "string"
+                    }
+                ],
+                "name": "addCandidate",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "endVoting",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getWinner",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "result",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "winners",
+                        "type": "uint256[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_candidateId",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "vote",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "candidates",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "voteCount",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "candidatesCount",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "totalVotes",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "voters",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "votingClosed",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "voter",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "candidateId",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "VoteCast",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": false,
+                        "internalType": "string",
+                        "name": "result",
+                        "type": "string"
+                    }
+                ],
+                "name": "VotingEnded",
+                "type": "event"
+            }
+        ];
+
+        const contractBytecode = "608060405234801561000f575f80fd5b506040516115d93803806115d9833981810160405281019061003191906103aa565b6040518060400160405280600781526020017f4d79546f6b656e000000000000000000000000000000000000000000000000008152506040518060400160405280600381526020017f4d544b000000000000000000000000000000000000000000000000000000000081525081600390816100ac9190610606565b5080600490816100bc9190610606565b5050506100cf33826100d560201b60201c565b506107ea565b5f73ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff1603610145575f6040517fec442f0500000000000000000000000000000000000000000000000000000000815260040161013c9190610714565b60405180910390fd5b6101565f838361015a60201b60201c565b5050565b5f73ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff16036101aa578060025f82825461019e919061075a565b92505081905550610278565b5f805f8573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f2054905081811015610233578381836040517fe450d38c00000000000000000000000000000000000000000000000000000000815260040161022a9392919061079c565b60405180910390fd5b8181035f808673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f2081905550505b5f73ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff16036102bf578060025f8282540392505081905550610309565b805f808473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f82825401925050819055505b8173ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef8360405161036691906107d1565b60405180910390a3505050565b5f80fd5b5f819050919050565b61038981610377565b8114610393575f80fd5b50565b5f815190506103a481610380565b92915050565b5f602082840312156103bf576103be610373565b5b5f6103cc84828501610396565b91505092915050565b5f81519050919050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52604160045260245ffd5b7f4e487b71000000000000000000000000000000000000000000000000000000005f52602260045260245ffd5b5f600282049050600182168061045057607f821691505b6020821081036104635761046261040c565b5b50919050565b5f819050815f5260205f209050919050565b5f6020601f8301049050919050565b5f82821b905092915050565b5f600883026104c57fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8261048a565b6104cf868361048a565b95508019841693508086168417925050509392505050565b5f819050919050565b5f61050a61050561050084610377565b6104e7565b610377565b9050919050565b5f819050919050565b610523836104f0565b61053761052f82610511565b848454610496565b825550505050565b5f90565b61054b61053f565b61055681848461051a565b505050565b5b818110156105795761056e5f82610543565b60018101905061055c565b5050565b601f8211156105be5761058f81610469565b6105988461047b565b810160208510156105a7578190505b6105bb6105b38561047b565b83018261055b565b50505b505050565b5f82821c905092915050565b5f6105de5f19846008026105c3565b1980831691505092915050565b5f6105f683836105cf565b9150826002028217905092915050565b61060f826103d5565b67ffffffffffffffff811115610628576106276103df565b5b6106328254610439565b61063d82828561057d565b5f60209050601f83116001811461066e575f841561065c578287015190505b61066685826105eb565b8655506106cd565b601f19841661067c86610469565b5f5b828110156106a35784890151825560018201915060208501945060208101905061067e565b868310156106c057848901516106bc601f8916826105cf565b8355505b6001600288020188555050505b505050505050565b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f6106fe826106d5565b9050919050565b61070e816106f4565b82525050565b5f6020820190506107275f830184610705565b92915050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b5f61076482610377565b915061076f83610377565b92508282019050808211156107875761078661072d565b5b92915050565b61079681610377565b82525050565b5f6060820190506107af5f830186610705565b6107bc602083018561078d565b6107c9604083018461078d565b949350505050565b5f6020820190506107e45f83018461078d565b92915050565b610de2806107f75f395ff3fe608060405234801561000f575f80fd5b5060043610610091575f3560e01c8063313ce56711610064578063313ce5671461013157806370a082311461014f57806395d89b411461017f578063a9059cbb1461019d578063dd62ed3e146101cd57610091565b806306fdde0314610095578063095ea7b3146100b357806318160ddd146100e357806323b872dd14610101575b5f80fd5b61009d6101fd565b6040516100aa9190610a5b565b60405180910390f35b6100cd60048036038101906100c89190610b0c565b61028d565b6040516100da9190610b64565b60405180910390f35b6100eb6102af565b6040516100f89190610b8c565b60405180910390f35b61011b60048036038101906101169190610ba5565b6102b8565b6040516101289190610b64565b60405180910390f35b6101396102e6565b6040516101469190610c10565b60405180910390f35b61016960048036038101906101649190610c29565b6102ee565b6040516101769190610b8c565b60405180910390f35b610187610333565b6040516101949190610a5b565b60405180910390f35b6101b760048036038101906101b29190610b0c565b6103c3565b6040516101c49190610b64565b60405180910390f35b6101e760048036038101906101e29190610c54565b6103e5565b6040516101f49190610b8c565b60405180910390f35b60606003805461020c90610cbf565b80601f016020809104026020016040519081016040528092919081815260200182805461023890610cbf565b80156102835780601f1061025a57610100808354040283529160200191610283565b820191905f5260205f20905b81548152906001019060200180831161026657829003601f168201915b5050505050905090565b5f80610297610467565b90506102a481858561046e565b600191505092915050565b5f600254905090565b5f806102c2610467565b90506102cf858285610480565b6102da858585610513565b60019150509392505050565b5f6012905090565b5f805f8373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f20549050919050565b60606004805461034290610cbf565b80601f016020809104026020016040519081016040528092919081815260200182805461036e90610cbf565b80156103b95780601f10610390576101008083540402835291602001916103b9565b820191905f5260205f20905b81548152906001019060200180831161039c57829003601f168201915b5050505050905090565b5f806103cd610467565b90506103da818585610513565b600191505092915050565b5f60015f8473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f8373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f2054905092915050565b5f33905090565b61047b8383836001610603565b505050565b5f61048b84846103e5565b90507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff81101561050d57818110156104fe578281836040517ffb8f41b20000000000000000000000000000000000000000000000000000000081526004016104f593929190610cfe565b60405180910390fd5b61050c84848484035f610603565b5b50505050565b5f73ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff1603610583575f6040517f96c6fd1e00000000000000000000000000000000000000000000000000000000815260040161057a9190610d33565b60405180910390fd5b5f73ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff16036105f3575f6040517fec442f050000000000000000000000000000000000000000000000000000000081526004016105ea9190610d33565b60405180910390fd5b6105fe8383836107d2565b505050565b5f73ffffffffffffffffffffffffffffffffffffffff168473ffffffffffffffffffffffffffffffffffffffff1603610673575f6040517fe602df0500000000000000000000000000000000000000000000000000000000815260040161066a9190610d33565b60405180910390fd5b5f73ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff16036106e3575f6040517f94280d620000000000000000000000000000000000000000000000000000000081526004016106da9190610d33565b60405180910390fd5b8160015f8673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f8573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f208190555080156107cc578273ffffffffffffffffffffffffffffffffffffffff168473ffffffffffffffffffffffffffffffffffffffff167f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925846040516107c39190610b8c565b60405180910390a35b50505050565b5f73ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff1603610822578060025f8282546108169190610d79565b925050819055506108f0565b5f805f8573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f20549050818110156108ab578381836040517fe450d38c0000000000000000000000000000000000000000000000000000000081526004016108a293929190610cfe565b60405180910390fd5b8181035f808673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f2081905550505b5f73ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff1603610937578060025f8282540392505081905550610981565b805f808473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f82825401925050819055505b8173ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef836040516109de9190610b8c565b60405180910390a3505050565b5f81519050919050565b5f82825260208201905092915050565b8281835e5f83830152505050565b5f601f19601f8301169050919050565b5f610a2d826109eb565b610a3781856109f5565b9350610a47818560208601610a05565b610a5081610a13565b840191505092915050565b5f6020820190508181035f830152610a738184610a23565b905092915050565b5f80fd5b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f610aa882610a7f565b9050919050565b610ab881610a9e565b8114610ac2575f80fd5b50565b5f81359050610ad381610aaf565b92915050565b5f819050919050565b610aeb81610ad9565b8114610af5575f80fd5b50565b5f81359050610b0681610ae2565b92915050565b5f8060408385031215610b2257610b21610a7b565b5b5f610b2f85828601610ac5565b9250506020610b4085828601610af8565b9150509250929050565b5f8115159050919050565b610b5e81610b4a565b82525050565b5f602082019050610b775f830184610b55565b92915050565b610b8681610ad9565b82525050565b5f602082019050610b9f5f830184610b7d565b92915050565b5f805f60608486031215610bbc57610bbb610a7b565b5b5f610bc986828701610ac5565b9350506020610bda86828701610ac5565b9250506040610beb86828701610af8565b9150509250925092565b5f60ff82169050919050565b610c0a81610bf5565b82525050565b5f602082019050610c235f830184610c01565b92915050565b5f60208284031215610c3e57610c3d610a7b565b5b5f610c4b84828501610ac5565b91505092915050565b5f8060408385031215610c6a57610c69610a7b565b5b5f610c7785828601610ac5565b9250506020610c8885828601610ac5565b9150509250929050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52602260045260245ffd5b5f6002820490506001821680610cd657607f821691505b602082108103610ce957610ce8610c92565b5b50919050565b610cf881610a9e565b82525050565b5f606082019050610d115f830186610cef565b610d1e6020830185610b7d565b610d2b6040830184610b7d565b949350505050565b5f602082019050610d465f830184610cef565b92915050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b5f610d8382610ad9565b9150610d8e83610ad9565b9250828201905080821115610da657610da5610d4c565b5b9291505056fea2646970667358221220dc1ca70abab98a015e03d1f11b7bd9f32b824952cfcf4f70f92f60be953dc16164736f6c634300081a0033"; //  bytecode 
+        let web3;
+        let currentAccount;
+
+        // Проверка наличия MetaMask
+        if (typeof window.ethereum === 'undefined') {
+            document.getElementById('statusMessage').textContent = 
+                'MetaMask не установлен. Для создания голосований требуется MetaMask.';
+            document.getElementById('statusMessage').className = 'status-message error';
+            document.getElementById('createPollBtn').disabled = true;
+        } else {
+            initWeb3();
+        }
+
+        // Инициализация Web3
+        async function initWeb3() {
+            try {
+                web3 = new Web3(window.ethereum);
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const accounts = await web3.eth.getAccounts();
+                currentAccount = accounts[0];
+                
+                // Обработка изменения аккаунта
+                window.ethereum.on('accountsChanged', (accounts) => {
+                    currentAccount = accounts[0];
+                });
+                
+            } catch (error) {
+                console.error('Ошибка инициализации Web3:', error);
+                showStatus('Ошибка подключения к MetaMask', 'error');
+                document.getElementById('createPollBtn').disabled = true;
+            }
+        }
+
+        // Глобальный счетчик для вариантов и участников
+        let optionCounter = 2;
+        let participantCounter = 1;
+
+        // Функция для добавления нового варианта ответа
+        document.getElementById('addOptionBtn').addEventListener('click', function() {
+            optionCounter++;
+            const container = document.getElementById('optionsContainer');
+            
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'option-input';
+            
+            const label = document.createElement('span');
+            label.className = 'option-label';
+            label.textContent = `Вариант ${optionCounter}:`;
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'poll-option';
+            input.placeholder = 'Введите вариант ответа';
+            input.required = true;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-btn';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = function() {
+                container.removeChild(optionDiv);
+                optionCounter--;
+                updateOptionLabels();
+            };
+            
+            optionDiv.appendChild(label);
+            optionDiv.appendChild(input);
+            optionDiv.appendChild(removeBtn);
+            container.appendChild(optionDiv);
+            
+            showStatus(`Добавлен вариант ${optionCounter}`, 'success');
+        });
+
+        // Функция для добавления нового участника
+        document.getElementById('addParticipantBtn').addEventListener('click', function() {
+            participantCounter++;
+            const container = document.getElementById('participantsContainer');
+            
+            const participantDiv = document.createElement('div');
+            participantDiv.className = 'participant-input';
+            
+            const label = document.createElement('span');
+            label.className = 'participant-label';
+            label.textContent = `Участник ${participantCounter}:`;
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'participant-address';
+            input.placeholder = '0x...';
+            input.required = true;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-btn';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = function() {
+                container.removeChild(participantDiv);
+                participantCounter--;
+                updateParticipantLabels();
+            };
+            
+            participantDiv.appendChild(label);
+            participantDiv.appendChild(input);
+            participantDiv.appendChild(removeBtn);
+            container.appendChild(participantDiv);
+            
+            showStatus(`Добавлен участник ${participantCounter}`, 'success');
+        });
+
+        // Функция для обновления нумерации вариантов
+        function updateOptionLabels() {
+            const labels = document.querySelectorAll('.option-label');
+            labels.forEach((label, index) => {
+                label.textContent = `Вариант ${index + 1}:`;
+            });
+            optionCounter = labels.length;
+        }
+
+        // Функция для обновления нумерации участников
+        function updateParticipantLabels() {
+            const labels = document.querySelectorAll('.participant-label');
+            labels.forEach((label, index) => {
+                label.textContent = `Участник ${index + 1}:`;
+            });
+            participantCounter = labels.length;
+        }
+
+        // Проверка валидности адреса Ethereum
+        function isValidEthAddress(address) {
+            return /^0x[a-fA-F0-9]{40}$/.test(address);
+        }
+
+        // Показать статус
+        function showStatus(message, type) {
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.textContent = message;
+            statusMessage.className = 'status-message ' + type;
+            setTimeout(() => {
+                statusMessage.className = 'status-message';
+                statusMessage.textContent = '';
+            }, 3000);
+        }
+
+        // Обработка формы создания голосования
+        document.getElementById('createPollForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('pollTitle').value.trim();
+            const description = document.getElementById('pollDescription').value.trim();
+            const endDate = document.getElementById('endDate').value;
+            const optionInputs = document.querySelectorAll('.poll-option');
+            const participantInputs = document.querySelectorAll('.participant-address');
+            
+            // Валидация
+            if (!title) {
+                showStatus('Введите название голосования', 'error');
+                return;
+            }
+            
+            if (!description) {
+                showStatus('Введите описание голосования', 'error');
+                return;
+            }
+            
+            if (!endDate) {
+                showStatus('Укажите дату окончания голосования', 'error');
+                return;
+            }
+            
+            // Собираем варианты ответов
+            const options = [];
+            let optionsValid = true;
+            
+            optionInputs.forEach((input, index) => {
+                const option = input.value.trim();
+                
+                if (!option) {
+                    showStatus(`Введите вариант ответа ${index + 1}`, 'error');
+                    optionsValid = false;
+                    return;
+                }
+                
+                options.push(option);
+            });
+            
+            if (!optionsValid) return;
+            
+            // Проверка на уникальность вариантов
+            const uniqueOptions = [...new Set(options)];
+            if (uniqueOptions.length !== options.length) {
+                showStatus('Обнаружены повторяющиеся варианты ответов', 'error');
+                return;
+            }
+            
+            // Собираем адреса участников
+            const participants = [];
+            let participantsValid = true;
+            
+            participantInputs.forEach((input, index) => {
+                const address = input.value.trim();
+                
+                if (!address) {
+                    showStatus(`Введите адрес участника ${index + 1}`, 'error');
+                    participantsValid = false;
+                    return;
+                }
+                
+                if (!isValidEthAddress(address)) {
+                    showStatus(`Неверный формат адреса участника ${index + 1}`, 'error');
+                    participantsValid = false;
+                    return;
+                }
+                
+                participants.push(address);
+            });
+            
+            if (!participantsValid) return;
+            
+            // Проверка на уникальность адресов
+            const uniqueParticipants = [...new Set(participants)];
+            if (uniqueParticipants.length !== participants.length) {
+                showStatus('Обнаружены повторяющиеся адреса участников', 'error');
+                return;
+            }
+
+            // Показываем индикатор загрузки
+            document.getElementById('createPollBtnText').textContent = 'Создание...';
+            document.getElementById('createPollBtnLoader').style.display = 'inline-block';
+            document.getElementById('createPollBtn').disabled = true;
+
+            try {
+                // Развертывание нового контракта голосования
+                const contract = new web3.eth.Contract(contractABI);
+                const deployedContract = await contract.deploy({
+                    data: contractBytecode,
+                    arguments: [options]
+                }).send({
+                    from: currentAccount,
+                    gas: 1500000,
+                    gasPrice: '30000000000'
+                });
+
+                // Сохраняем данные о голосовании
+                const voting = {
+                    id: deployedContract.options.address,
+                    title,
+                    description,
+                    options,
+                    participants,
+                    contractAddress: deployedContract.options.address,
+                    creator: currentAccount,
+                    createdAt: new Date().toISOString(),
+                    endDate,
+                    status: 'open'
+                };
+
+                // Сохраняем в localStorage
+                const existingVotings = JSON.parse(localStorage.getItem('votings')) || [];
+                existingVotings.push(voting);
+                localStorage.setItem('votings', JSON.stringify(existingVotings));
+
+                showStatus(`Голосование "${title}" успешно создано! Перенаправление...`, 'success');
+                
+                // Перенаправляем на главную страницу через 1.5 секунды
+                setTimeout(() => {
+                    window.location.href = 'glav.html';
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Ошибка при создании голосования:', error);
+                showStatus('Ошибка при создании голосования: ' + error.message, 'error');
+            } finally {
+                // Восстанавливаем кнопку
+                document.getElementById('createPollBtnText').textContent = 'Создать голосование';
+                document.getElementById('createPollBtnLoader').style.display = 'none';
+                document.getElementById('createPollBtn').disabled = false;
+            }
+        });
+
+        // Инициализация кнопок удаления
+        document.querySelectorAll('.remove-btn').forEach(btn => {
+            btn.onclick = function() {
+                const container = this.parentElement.parentElement;
+                container.removeChild(this.parentElement);
+                
+                if (container.id === 'optionsContainer') {
+                    optionCounter--;
+                    updateOptionLabels();
+                } else {
+                    participantCounter--;
+                    updateParticipantLabels();
+                }
+            };
+        });
+    </script>
+</body>
+</html>

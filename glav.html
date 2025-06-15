@@ -105,6 +105,46 @@
             border-radius: 5px;
             display: none;
         }
+        
+        .user-vote {
+            color: #3498db;
+            font-size: 14px;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+        
+        .voting-stats {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        .voting-creator {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        .results-summary {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        
+        .result-bar {
+            height: 10px;
+            background-color: #3498db;
+            border-radius: 5px;
+            margin-top: 3px;
+        }
     </style>
 </head>
 <body>
@@ -114,7 +154,7 @@
         Подключен кошелек: <span id="walletAddress"></span>
     </div>
     
- 
+
     
     <a href="craft.html" class="create-voting">Создать голосование</a>
     
@@ -131,13 +171,23 @@
             const date = new Date(dateString);
             const day = date.getDate().toString().padStart(2, '0');
             const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            return `${day}.${month}`;
+            const year = date.getFullYear();
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        }
+
+        // Функция для форматирования адреса
+        function formatAddress(address) {
+            if (!address) return '';
+            return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
         }
 
         // Функция для отображения голосований
         function displayVotings() {
             const votingsContainer = document.getElementById('votingsContainer');
             const votings = JSON.parse(localStorage.getItem('votings')) || [];
+            const currentWallet = localStorage.getItem('currentWallet');
             
             votingsContainer.innerHTML = '';
             
@@ -145,6 +195,9 @@
                 votingsContainer.innerHTML = '<p>Нет активных голосований</p>';
                 return;
             }
+            
+            // Сортируем голосования по дате создания (новые сверху)
+            votings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             
             votings.forEach(voting => {
                 const votingElement = document.createElement('div');
@@ -157,9 +210,49 @@
                 const statusClass = voting.status === 'open' ? 'status-open' : 'status-closed';
                 const statusText = voting.status === 'open' ? 'ОТКРЫТО' : 'ЗАВЕРШЕНО';
                 
+                // Проверяем, голосовал ли текущий пользователь
+                let userVoteInfo = '';
+                if (currentWallet && voting.voters) {
+                    const userVote = voting.voters.find(v => v.wallet === currentWallet.toLowerCase());
+                    if (userVote) {
+                        userVoteInfo = `<div class="user-vote">Ваш голос: ${userVote.choice}</div>`;
+                    }
+                }
+                
+                // Информация о создателе
+                const creatorInfo = voting.creator ? 
+                    `<div class="voting-creator">Создатель: ${formatAddress(voting.creator)}</div>` : '';
+                
+                // Статистика голосования
+                let statsInfo = '';
+                if (voting.status === 'closed' && voting.results) {
+                    const totalVotes = Object.values(voting.results).reduce((sum, count) => sum + count, 0);
+                    statsInfo = `<div class="voting-stats">Проголосовало: ${voting.voters ? voting.voters.length : 0} из ${voting.participants ? voting.participants.length : 0} участников</div>`;
+                    
+                    // Результаты голосования
+                    if (totalVotes > 0) {
+                        let resultsHTML = '<div class="results-summary"><strong>Результаты:</strong>';
+                        Object.entries(voting.results).forEach(([option, count]) => {
+                            const percentage = Math.round((count / totalVotes) * 100);
+                            resultsHTML += `
+                                <div class="result-item">
+                                    <span>${option}:</span>
+                                    <span>${count} (${percentage}%)</span>
+                                </div>
+                                <div class="result-bar" style="width: ${percentage}%"></div>
+                            `;
+                        });
+                        resultsHTML += '</div>';
+                        statsInfo += resultsHTML;
+                    }
+                }
+                
                 votingElement.innerHTML = `
                     <div class="voting-title">${voting.title.toUpperCase()}</div>
-                    <div class="voting-description">ОПИСАНИЕ: ${voting.description}</div>
+                    <div class="voting-description">${voting.description}</div>
+                    ${userVoteInfo}
+                    ${creatorInfo}
+                    ${statsInfo}
                     <div class="voting-date ${statusClass}">
                         ${formatDate(voting.createdAt)} ● ${statusText}
                     </div>
@@ -193,6 +286,10 @@
                     const accounts = await window.ethereum.request({ method: 'eth_accounts' });
                     if (accounts.length > 0) {
                         updateWalletInfo(accounts[0]);
+                        // Сохраняем текущий кошелек в localStorage
+                        localStorage.setItem('currentWallet', accounts[0].toLowerCase());
+                        // Обновляем список голосований с учетом нового кошелька
+                        displayVotings();
                     }
                 } catch (error) {
                     console.error('Ошибка при проверке подключенного кошелька:', error);
@@ -203,14 +300,22 @@
                 try {
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     updateWalletInfo(accounts[0]);
+                    // Сохраняем текущий кошелек в localStorage
+                    localStorage.setItem('currentWallet', accounts[0].toLowerCase());
+                    // Обновляем список голосований с учетом нового кошелька
+                    displayVotings();
                     
                     window.ethereum.on('accountsChanged', (newAccounts) => {
                         if (newAccounts.length > 0) {
                             updateWalletInfo(newAccounts[0]);
+                            localStorage.setItem('currentWallet', newAccounts[0].toLowerCase());
+                            displayVotings();
                         } else {
                             walletInfo.style.display = 'none';
                             connectButton.textContent = 'Подключить MetaMask';
                             connectButton.style.backgroundColor = '#f6851b';
+                            localStorage.removeItem('currentWallet');
+                            displayVotings();
                         }
                     });
                     
@@ -227,7 +332,7 @@
             }
             
             function updateWalletInfo(account) {
-                const formattedAddress = `${account.substring(0, 6)}...${account.substring(account.length - 4)}`;
+                const formattedAddress = formatAddress(account);
                 walletAddress.textContent = formattedAddress;
                 walletInfo.style.display = 'block';
                 connectButton.textContent = 'Кошелек подключен';

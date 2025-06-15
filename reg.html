@@ -194,6 +194,27 @@
             font-size: 14px;
             margin-left: 5px;
         }
+        
+        .test-accounts {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .test-account {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .test-account:hover {
+            background-color: #e8f4fd;
+        }
     </style>
 </head>
 <body>
@@ -218,7 +239,7 @@
                 <label for="password">Пароль:</label>
                 <input type="password" id="password" required placeholder="Введите ваш пароль">
                 <div class="forgot-password">
-                    <a href="#" id="forgotPassword"></a>
+                    <a href="#" id="forgotPassword">Забыли пароль?</a>
                 </div>
             </div>
             
@@ -226,6 +247,27 @@
             
             <div id="statusMessage" class="status-message"></div>
         </form>
+        
+        <div class="test-accounts">
+            <div><strong>Тестовые аккаунты:</strong></div>
+            <div class="test-account" onclick="useTestAccount('0xbe8064aeea556847b21aa46a8a9c07a9f7330276')">
+                <span>Администратор</span>
+                <span>0xbe80...30276</span>
+            </div>
+            <div class="test-account" onclick="useTestAccount('0xbe8064aeea556847b21aa46a8a9c07a9f7330349')">
+                <span>Участник 1</span>
+                <span>0xbe80...30349</span>
+            </div>
+            <div class="test-account" onclick="useTestAccount('0xbe8064aeea556847b21aa46a8a9c07a9f7330421')">
+                <span>Участник 2</span>
+                <span>0xbe80...30421</span>
+            </div>
+            <div class="test-account" onclick="useTestAccount('0xbe8064aeea556847b21aa46a8a9c07a9f7330555')">
+                <span>Участник 3</span>
+                <span>0xbe80...30555</span>
+            </div>
+            <div style="margin-top: 10px; font-style: italic;">Пароль для всех: 12345</div>
+        </div>
         
         <div class="security-tip">
             <strong>Безопасность:</strong> Убедитесь, что вводите правильный адрес кошелька. Никогда не вводите seed-фразу или приватный ключ.
@@ -241,6 +283,13 @@
             document.getElementById('statusMessage').textContent = 
                 'MetaMask не установлен. Вы можете ввести адрес кошелька вручную.';
             document.getElementById('statusMessage').className = 'status-message info';
+        }
+
+        // Функция для использования тестового аккаунта
+        function useTestAccount(address) {
+            document.getElementById('walletAddress').value = address;
+            document.getElementById('password').value = '12345';
+            showStatus(`Выбран тестовый аккаунт ${formatAddress(address)}`, 'success');
         }
 
         // Подключение кошелька
@@ -325,8 +374,17 @@
                 return;
             }
             
-            // Проверка специального адреса и пароля
-            if (walletAddress.toLowerCase() === '0xbe8064aeea556847b21aa46a8a9c07a9f7330276' && password === '12345') {
+            // Проверка тестовых аккаунтов
+            const testAccounts = [
+                '0xbe8064aeea556847b21aa46a8a9c07a9f7330276',
+                '0xbe8064aeea556847b21aa46a8a9c07a9f7330349',
+                '0xbe8064aeea556847b21aa46a8a9c07a9f7330421',
+                '0xbe8064aeea556847b21aa46a8a9c07a9f7330555'
+            ];
+            
+            if (testAccounts.includes(walletAddress.toLowerCase()) && password === '12345') {
+                // Сохраняем текущий кошелек в localStorage
+                localStorage.setItem('currentWallet', walletAddress.toLowerCase());
                 showStatus('Вход выполнен успешно! Перенаправление...', 'success');
                 setTimeout(() => {
                     window.location.href = 'glav.html';
@@ -352,12 +410,14 @@
                     return;
                 }
                 
+                // Сохраняем текущий кошелек в localStorage
+                localStorage.setItem('currentWallet', walletAddress.toLowerCase());
+                
                 // Успешный вход
                 showStatus('Вход выполнен успешно! Перенаправление...', 'success');
                 
-                // В реальном приложении здесь было бы перенаправление
                 setTimeout(() => {
-                    alert('Добро пожаловать, ' + formatAddress(walletAddress) + '!');
+                    window.location.href = 'glav.html';
                 }, 1500);
                 
             } catch (error) {
